@@ -371,9 +371,9 @@ namespace detail {
     void operator()(typename basic_yield_context<Handler>::caller_type& ca)
     {
       shared_ptr<spawn_data<Handler, Function> > data(data_);
-#if !defined(BOOST_COROUTINES_UNIDIRECT) && !defined(BOOST_COROUTINES_V2)
+#ifndef ASIO_USE_ASYMETRIC_COROUTINES
       ca(); // Yield until coroutine pointer has been initialised.
-#endif // !defined(BOOST_COROUTINES_UNIDIRECT) && !defined(BOOST_COROUTINES_V2)
+#endif // !ifndef ASIO_USE_ASYMETRIC_COROUTINES
       const basic_yield_context<Handler> yield(
           data->coro_, ca, data->handler_);
 
@@ -392,13 +392,17 @@ namespace detail {
     {
       typedef typename basic_yield_context<Handler>::callee_type callee_type;
       coro_entry_point<Handler, Function> entry_point = { data_ };
+#ifdef ASIO_SKIP_COROUTINE_ATTRIBUTE
+      shared_ptr<callee_type> coro(new callee_type(entry_point));
+#else
       shared_ptr<callee_type> coro(new callee_type(entry_point, attributes_));
+#endif
       data_->coro_ = coro;
       (*coro)();
     }
 
     shared_ptr<spawn_data<Handler, Function> > data_;
-    boost::coroutines::attributes attributes_;
+    boost_coroutines::attributes attributes_;
   };
 
   template <typename Function, typename Handler, typename Function1>
@@ -423,7 +427,7 @@ namespace detail {
 
 template <typename Function>
 inline void spawn(ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes)
+    const boost_coroutines::attributes& attributes)
 {
   typedef typename decay<Function>::type function_type;
 
@@ -436,7 +440,7 @@ inline void spawn(ASIO_MOVE_ARG(Function) function,
 template <typename Handler, typename Function>
 void spawn(ASIO_MOVE_ARG(Handler) handler,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes,
+    const boost_coroutines::attributes& attributes,
     typename enable_if<!is_executor<typename decay<Handler>::type>::value &&
       !is_convertible<Handler&, execution_context&>::value>::type*)
 {
@@ -461,7 +465,7 @@ void spawn(ASIO_MOVE_ARG(Handler) handler,
 template <typename Handler, typename Function>
 void spawn(basic_yield_context<Handler> ctx,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes)
+    const boost_coroutines::attributes& attributes)
 {
   Handler handler(ctx.handler_); // Explicit copy that might be moved from.
 
@@ -484,7 +488,7 @@ void spawn(basic_yield_context<Handler> ctx,
 template <typename Function, typename Executor>
 inline void spawn(const Executor& ex,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes,
+    const boost_coroutines::attributes& attributes,
     typename enable_if<is_executor<Executor>::value>::type*)
 {
   asio::spawn(asio::strand<Executor>(ex),
@@ -494,7 +498,7 @@ inline void spawn(const Executor& ex,
 template <typename Function, typename Executor>
 inline void spawn(const strand<Executor>& ex,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes)
+    const boost_coroutines::attributes& attributes)
 {
   asio::spawn(asio::bind_executor(
         ex, &detail::default_spawn_handler),
@@ -504,7 +508,7 @@ inline void spawn(const strand<Executor>& ex,
 template <typename Function>
 inline void spawn(const asio::io_context::strand& s,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes)
+    const boost_coroutines::attributes& attributes)
 {
   asio::spawn(asio::bind_executor(
         s, &detail::default_spawn_handler),
@@ -514,7 +518,7 @@ inline void spawn(const asio::io_context::strand& s,
 template <typename Function, typename ExecutionContext>
 inline void spawn(ExecutionContext& ctx,
     ASIO_MOVE_ARG(Function) function,
-    const boost::coroutines::attributes& attributes,
+    const boost_coroutines::attributes& attributes,
     typename enable_if<is_convertible<
       ExecutionContext&, execution_context&>::value>::type*)
 {
